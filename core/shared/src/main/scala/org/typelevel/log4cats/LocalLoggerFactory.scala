@@ -23,10 +23,19 @@ import cats.{Functor, Monad, Show}
 sealed trait LocalLoggerFactory[F[_]] extends LoggerFactoryGen[F] {
   final type LoggerType = LocalLogger[F]
 
+  /**
+   * @return
+   *   the given effect modified to have the provided context stored [[cats.mtl.Local locally]]
+   */
   def withAddedContext[A](ctx: Map[String, String])(fa: F[A]): F[A]
 
+  /**
+   * @return
+   *   the given effect modified to have the provided context stored [[cats.mtl.Local locally]]
+   */
   def withAddedContext[A](ctx: (String, Show.Shown)*)(fa: F[A]): F[A]
 
+  /** Lifts this factory's context from `F` to `G`. */
   def liftTo[G[_]](implicit lift: LiftKind[F, G], G: Monad[G]): LocalLoggerFactory[G]
 
   def withModifiedString(f: String => String)(implicit F: Functor[F]): LocalLoggerFactory[F]

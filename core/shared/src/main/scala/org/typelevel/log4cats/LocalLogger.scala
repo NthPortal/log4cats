@@ -17,12 +17,21 @@
 package org.typelevel.log4cats
 
 import cats.mtl.{LiftKind, Local}
-import cats.syntax.functor.*
+import cats.syntax.flatMap.*
 import cats.{~>, Monad, Show}
 
 sealed trait LocalLogger[F[_]] extends SelfAwareLogger[F] {
+
+  /**
+   * @return
+   *   the given effect modified to have the provided context stored [[cats.mtl.Local locally]]
+   */
   def withAddedContext[A](ctx: Map[String, String])(fa: F[A]): F[A]
 
+  /**
+   * @return
+   *   the given effect modified to have the provided context stored [[cats.mtl.Local locally]]
+   */
   def withAddedContext[A](ctx: (String, Show.Shown)*)(fa: F[A]): F[A]
 
   def error(ctx: Map[String, String])(msg: => String): F[Unit]
@@ -42,6 +51,7 @@ sealed trait LocalLogger[F[_]] extends SelfAwareLogger[F] {
   )
   override def mapK[G[_]](fk: F ~> G): SelfAwareLogger[G] = super.mapK(fk)
 
+  /** Lifts this logger's context from `F` to `G`. */
   def liftTo[G[_]](implicit lift: LiftKind[F, G], G: Monad[G]): LocalLogger[G]
 
   override def withModifiedString(f: String => String): LocalLogger[F]
@@ -95,126 +105,126 @@ object LocalLogger {
 
     def error(message: => String): F[Unit] =
       F.ifM(underlying.isErrorEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.error(localCtx)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.error(_)(message)),
         F.unit
       )
     def error(t: Throwable)(message: => String): F[Unit] =
       F.ifM(underlying.isErrorEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.error(localCtx, t)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.error(_, t)(message)),
         F.unit
       )
     def error(ctx: Map[String, String])(msg: => String): F[Unit] =
       F.ifM(underlying.isErrorEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.error(localCtx ++ ctx)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.error(localCtx ++ ctx)(msg)),
         F.unit
       )
     def error(ctx: Map[String, String], t: Throwable)(msg: => String): F[Unit] =
       F.ifM(underlying.isErrorEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.error(localCtx ++ ctx, t)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.error(localCtx ++ ctx, t)(msg)),
         F.unit
       )
 
     def warn(message: => String): F[Unit] =
       F.ifM(underlying.isWarnEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.warn(localCtx)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.warn(_)(message)),
         F.unit
       )
     def warn(t: Throwable)(message: => String): F[Unit] =
       F.ifM(underlying.isWarnEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.warn(localCtx, t)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.warn(_, t)(message)),
         F.unit
       )
     def warn(ctx: Map[String, String])(msg: => String): F[Unit] =
       F.ifM(underlying.isWarnEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.warn(localCtx ++ ctx)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.warn(localCtx ++ ctx)(msg)),
         F.unit
       )
     def warn(ctx: Map[String, String], t: Throwable)(msg: => String): F[Unit] =
       F.ifM(underlying.isWarnEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.warn(localCtx ++ ctx, t)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.warn(localCtx ++ ctx, t)(msg)),
         F.unit
       )
 
     def info(message: => String): F[Unit] =
       F.ifM(underlying.isInfoEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.info(localCtx)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.info(_)(message)),
         F.unit
       )
     def info(t: Throwable)(message: => String): F[Unit] =
       F.ifM(underlying.isInfoEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.info(localCtx, t)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.info(_, t)(message)),
         F.unit
       )
     def info(ctx: Map[String, String])(msg: => String): F[Unit] =
       F.ifM(underlying.isInfoEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.info(localCtx ++ ctx)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.info(localCtx ++ ctx)(msg)),
         F.unit
       )
     def info(ctx: Map[String, String], t: Throwable)(msg: => String): F[Unit] =
       F.ifM(underlying.isInfoEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.info(localCtx ++ ctx, t)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.info(localCtx ++ ctx, t)(msg)),
         F.unit
       )
 
     def debug(message: => String): F[Unit] =
       F.ifM(underlying.isDebugEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.debug(localCtx)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.debug(_)(message)),
         F.unit
       )
     def debug(t: Throwable)(message: => String): F[Unit] =
       F.ifM(underlying.isDebugEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.debug(localCtx, t)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.debug(_, t)(message)),
         F.unit
       )
     def debug(ctx: Map[String, String])(msg: => String): F[Unit] =
       F.ifM(underlying.isDebugEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.debug(localCtx ++ ctx)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.debug(localCtx ++ ctx)(msg)),
         F.unit
       )
     def debug(ctx: Map[String, String], t: Throwable)(msg: => String): F[Unit] =
       F.ifM(underlying.isDebugEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.debug(localCtx ++ ctx, t)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.debug(localCtx ++ ctx, t)(msg)),
         F.unit
       )
 
     def trace(message: => String): F[Unit] =
       F.ifM(underlying.isTraceEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.trace(localCtx)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.trace(_)(message)),
         F.unit
       )
     def trace(t: Throwable)(message: => String): F[Unit] =
       F.ifM(underlying.isTraceEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.trace(localCtx, t)(message),
+        localLogContext.currentLogContext
+          .flatMap(underlying.trace(_, t)(message)),
         F.unit
       )
     def trace(ctx: Map[String, String])(msg: => String): F[Unit] =
       F.ifM(underlying.isTraceEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.trace(localCtx ++ ctx)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.trace(localCtx ++ ctx)(msg)),
         F.unit
       )
     def trace(ctx: Map[String, String], t: Throwable)(msg: => String): F[Unit] =
       F.ifM(underlying.isTraceEnabled)(
-        for (localCtx <- localLogContext.currentLogContext)
-          yield underlying.trace(localCtx ++ ctx, t)(msg),
+        localLogContext.currentLogContext
+          .flatMap(localCtx => underlying.trace(localCtx ++ ctx, t)(msg)),
         F.unit
       )
   }
