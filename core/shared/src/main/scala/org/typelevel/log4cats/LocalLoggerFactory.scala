@@ -20,18 +20,21 @@ import cats.mtl.{LiftKind, Local}
 import cats.syntax.functor.*
 import cats.{Functor, Monad, Show}
 
+/** A factory for [[LocalLogger loggers]] with [[cats.mtl.Local `Local`]] semantics. */
 sealed trait LocalLoggerFactory[F[_]] extends LoggerFactoryGen[F] {
   final type LoggerType = LocalLogger[F]
 
   /**
-   * @return
-   *   the given effect modified to have the provided context stored [[cats.mtl.Local locally]]
+   * Modifies the given effect to have the provided context stored [[cats.mtl.Local locally]].
+   *
+   * Context added using this method is available to all loggers created by this factory.
    */
   def withAddedContext[A](ctx: Map[String, String])(fa: F[A]): F[A]
 
   /**
-   * @return
-   *   the given effect modified to have the provided context stored [[cats.mtl.Local locally]]
+   * Modifies the given effect to have the provided context stored [[cats.mtl.Local locally]].
+   *
+   * Context added using this method is available to all loggers created by this factory.
    */
   def withAddedContext[A](ctx: (String, Show.Shown)*)(fa: F[A]): F[A]
 
@@ -62,12 +65,22 @@ object LocalLoggerFactory {
       underlying.fromName(name).map(LocalLogger(localLogContext, _))
   }
 
+  /**
+   * @return
+   *   a factory for [[cats.mtl.Local local]] loggers backed by the given [[`LocalLogContext`]] and
+   *   [[`LoggerFactory`]]
+   */
   def apply[F[_]: Monad](
       localLogContext: LocalLogContext[F],
       underlying: LoggerFactory[F]
   ): LocalLoggerFactory[F] =
     new Impl(localLogContext, underlying)
 
+  /**
+   * @return
+   *   a factory for local loggers backed by the given [[`LoggerFactory`]] and implicit
+   *   [[cats.mtl.Local `Local`]]
+   */
   def fromLocal[F[_]: Monad](
       underlying: LoggerFactory[F]
   )(implicit localCtx: Local[F, Map[String, String]]): LocalLoggerFactory[F] =

@@ -20,17 +20,27 @@ import cats.mtl.{LiftKind, Local}
 import cats.syntax.flatMap.*
 import cats.{~>, Monad, Show}
 
+/**
+ * A logger with [[cats.mtl.Local `Local`]] semantics.
+ *
+ * @see
+ *   [[withAddedContext]]
+ */
 sealed trait LocalLogger[F[_]] extends SelfAwareLogger[F] {
 
   /**
-   * @return
-   *   the given effect modified to have the provided context stored [[cats.mtl.Local locally]]
+   * Modifies the given effect to have the provided context stored [[cats.mtl.Local locally]].
+   *
+   * Context added using this method is available to all loggers created by this logger's
+   * [[LocalLoggerFactory parent factory]].
    */
   def withAddedContext[A](ctx: Map[String, String])(fa: F[A]): F[A]
 
   /**
-   * @return
-   *   the given effect modified to have the provided context stored [[cats.mtl.Local locally]]
+   * Modifies the given effect to have the provided context stored [[cats.mtl.Local locally]].
+   *
+   * Context added using this method is available to all loggers created by this logger's
+   * [[LocalLoggerFactory parent factory]].
    */
   def withAddedContext[A](ctx: (String, Show.Shown)*)(fa: F[A]): F[A]
 
@@ -45,10 +55,7 @@ sealed trait LocalLogger[F[_]] extends SelfAwareLogger[F] {
   def trace(ctx: Map[String, String])(msg: => String): F[Unit]
   def trace(ctx: Map[String, String], t: Throwable)(msg: => String): F[Unit]
 
-  @deprecated(
-    "use the overload that takes a `LiftKind` and `Monad` instead",
-    since = "2.8.0"
-  )
+  @deprecated("use `liftTo` instead", since = "log4cats 2.8.0")
   override def mapK[G[_]](fk: F ~> G): SelfAwareLogger[G] = super.mapK(fk)
 
   /** Lifts this logger's context from `F` to `G`. */
@@ -56,9 +63,16 @@ sealed trait LocalLogger[F[_]] extends SelfAwareLogger[F] {
 
   override def withModifiedString(f: String => String): LocalLogger[F]
 
+  /**
+   * A view of this logger as a [[`StructuredLogger`]], to support gradual migration away from
+   * `StructuredLogger`. Log context added using this `LocalLogger` or its
+   * [[LocalLoggerFactory parent factory]] will be included in log messages created by
+   * `StructuredLogger`s returned by this method, regardless of the scope in which this method was
+   * called.
+   */
   @deprecated(
     "`StructuredLogger` is cumbersome and lacks `cats.mtl.Local` semantics",
-    since = "2.8.0"
+    since = "log4cats 2.8.0"
   )
   def asStructuredLogger: SelfAwareStructuredLogger[F]
 }
@@ -86,10 +100,7 @@ object LocalLogger {
     def isDebugEnabled: F[Boolean] = underlying.isDebugEnabled
     def isTraceEnabled: F[Boolean] = underlying.isTraceEnabled
 
-    @deprecated(
-      "use the overload that takes a `LiftKind` and `Monad` instead",
-      since = "2.8.0"
-    )
+    @deprecated("use `liftTo` instead", since = "log4cats 2.8.0")
     override def mapK[G[_]](fk: F ~> G): SelfAwareStructuredLogger[G] =
       super.mapK(fk)
     def liftTo[G[_]](implicit lift: LiftKind[F, G], G: Monad[G]): LocalLogger[G] =
@@ -99,7 +110,7 @@ object LocalLogger {
 
     @deprecated(
       "`StructuredLogger` is cumbersome and lacks `cats.mtl.Local` semantics",
-      since = "2.8.0"
+      since = "log4cats 2.8.0"
     )
     def asStructuredLogger: SelfAwareStructuredLogger[F] = this
 
@@ -229,12 +240,28 @@ object LocalLogger {
       )
   }
 
+  /**
+   * This method should only be used when a [[`LoggerFactory`]] is not available; when possible,
+   * create a [[`LocalLoggerFactory`]] and use that to create `LocalLogger`s.
+   *
+   * @return
+   *   a [[cats.mtl.Local local]] logger backed by the given [[`LocalLogContext`]] and
+   *   [[`LoggerFactory`]]
+   */
   def apply[F[_]: Monad](
       localLogContext: LocalLogContext[F],
       underlying: SelfAwareStructuredLogger[F]
   ): LocalLogger[F] =
     new Impl(localLogContext, underlying)
 
+  /**
+   * This method should only be used when a [[`LoggerFactory`]] is not available; when possible,
+   * create a [[`LocalLoggerFactory`]] and use that to create `LocalLogger`s.
+   *
+   * @return
+   *   a local logger backed by the given [[`SelfAwareStructuredLogger`]] and implicit
+   *   [[cats.mtl.Local `Local`]]
+   */
   def fromLocal[F[_]: Monad](
       underlying: SelfAwareStructuredLogger[F]
   )(implicit localCtx: Local[F, Map[String, String]]): LocalLogger[F] =
